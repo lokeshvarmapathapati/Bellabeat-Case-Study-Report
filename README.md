@@ -43,9 +43,7 @@ For this case study, I used the Fitbit Fitness Tracker Data available on Kaggle.
 - Filtered users < 30 days logged  
 - Removed rows with steps & calories = 0  
 
-## 5. Analyze
-*(5 Tableau dashboards here — add screenshots in `images/`)*  
-
+## 5. Analyze  
 - Steps vs Calories → positive correlation  
 - Active Minutes vs Calories → strong link  
 - Weekly Trends → weekdays more active than weekends  
