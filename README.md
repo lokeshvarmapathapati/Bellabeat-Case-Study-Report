@@ -35,6 +35,71 @@ For this case study, I used the Fitbit Fitness Tracker Data available on Kaggle.
 - ⚠️ Old data (2016)  
 
 ## 4. Process
+R programme :
+# Load libraries
+library(tidyverse)
+library(lubridate)
+
+# Import data (adjust path to your files)
+daily_activity <- read_csv("dailyActivity_merged.csv")
+sleep_day <- read_csv("sleepDay_merged.csv")
+weight_log <- read_csv("weightLogInfo_merged.csv")
+
+# --- 1. Check structure of datasets ---
+glimpse(daily_activity)
+glimpse(sleep_day)
+glimpse(weight_log)
+
+# --- 2. Check missing values ---
+colSums(is.na(daily_activity))
+colSums(is.na(sleep_day))
+colSums(is.na(weight_log))
+
+# --- 3. Remove duplicates ---
+daily_activity <- daily_activity %>% distinct()
+sleep_day <- sleep_day %>% distinct()
+weight_log <- weight_log %>% distinct()
+
+# --- 4. Standardize column names ---
+daily_activity <- daily_activity %>% rename_with(tolower)
+sleep_day <- sleep_day %>% rename_with(tolower)
+weight_log <- weight_log %>% rename_with(tolower)
+
+# --- 5. Convert dates into proper format ---
+daily_activity <- daily_activity %>%
+  mutate(activitydate = mdy(activitydate))
+
+sleep_day <- sleep_day %>%
+  mutate(sleepday = mdy_hms(sleepday))
+
+weight_log <- weight_log %>%
+  mutate(date = mdy_hms(date))
+
+# --- 6. Check unique users in each dataset ---
+n_distinct(daily_activity$id)
+n_distinct(sleep_day$id)
+n_distinct(weight_log$id)
+
+# --- 7. Filter out users with less than 30 days of records ---
+activity_days <- daily_activity %>%
+  group_by(id) %>%
+  summarise(days_logged = n_distinct(activitydate))
+
+valid_users <- activity_days %>% filter(days_logged >= 30) %>% pull(id)
+
+daily_activity <- daily_activity %>% filter(id %in% valid_users)
+sleep_day <- sleep_day %>% filter(id %in% valid_users)
+
+# --- 8. Handle zero values ---
+# For example, if steps = 0 and calories = 0, drop those rows
+daily_activity <- daily_activity %>%
+  filter(!(totalsteps == 0 & calories == 0))
+
+# --- 9. Verify consistency of units ---
+summary(daily_activity$totalsteps)
+summary(daily_activity$calories)
+summary(sleep_day$totalminutesasleep)
+
 - Loaded Fitbit datasets into R (`read_csv`)  
 - Removed duplicates with `distinct()`  
 - Checked missing values with `is.na()`  
@@ -44,6 +109,42 @@ For this case study, I used the Fitbit Fitness Tracker Data available on Kaggle.
 - Removed rows with steps & calories = 0  
 
 ## 5. Analyze  
+R programme :
+# Load libraries
+library(tidyverse)
+library(lubridate)
+
+# --- 1. Steps vs Calories correlation ---
+steps_calories <- daily_activity %>%
+  select(totalsteps, calories)
+
+cor(steps_calories$totalsteps, steps_calories$calories, use = "complete.obs")
+# --- 2. Active minutes vs Calories ---
+activity_calories <- daily_activity %>%
+  mutate(total_active_minutes = veryactiveminutes + fairlyactiveminutes + lightlyactiveminutes) %>%
+  group_by(id) %>%
+  summarise(avg_active_minutes = mean(total_active_minutes),
+            avg_calories = mean(calories))
+
+head(activity_calories)
+
+# --- 3. Weekday activity patterns ---
+weekday_activity <- daily_activity %>%
+  mutate(weekday = wday(activitydate, label = TRUE)) %>%
+  group_by(weekday) %>%
+  summarise(avg_steps = mean(totalsteps),
+            avg_calories = mean(calories))
+
+weekday_activity
+
+# --- 4. Sleep vs Activity relationship ---
+sleep_activity <- sleep_day %>%
+  inner_join(daily_activity, by = c("id", "sleepday" = "activitydate")) %>%
+  select(id, totalminutesasleep, totalsteps, calories)
+
+cor(sleep_activity$totalminutesasleep, sleep_activity$totalsteps, use = "complete.obs")
+cor(sleep_activity$totalminutesasleep, sleep_activity$calories, use = "complete.obs")
+
 - Steps vs Calories → positive correlation  
 - Active Minutes vs Calories → strong link  
 - Weekly Trends → weekdays more active than weekends  
